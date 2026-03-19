@@ -12,7 +12,7 @@ RSpec.describe Brcobranca::Boleto::Caixa do #:nodoc:[all]
       agencia: '1825',
       conta_corrente: '0000528',
       convenio: '245274',
-      numero_documento: '000000000000001'
+      numero_documento: '0000000000001'
     }
   end
 
@@ -61,8 +61,8 @@ RSpec.describe Brcobranca::Boleto::Caixa do #:nodoc:[all]
     expect { boleto_novo.codigo_barras }.to raise_error(Brcobranca::BoletoInvalido)
   end
 
-  it 'Tamanho do número de convênio deve ser de 6 dígitos' do
-    boleto_novo = described_class.new @valid_attributes.merge(convenio: '1234567')
+  it 'Tamanho do número de convênio deve ser de 6 ou 7 dígitos' do
+    boleto_novo = described_class.new @valid_attributes.merge(convenio: '12345678')
     expect(boleto_novo).not_to be_valid
   end
 
@@ -88,14 +88,14 @@ RSpec.describe Brcobranca::Boleto::Caixa do #:nodoc:[all]
     expect(boleto_novo).not_to be_valid
   end
 
-  it 'Tamanho do número documento deve ser de 15 dígitos' do
+  it 'Tamanho do número documento deve ser de 13 dígitos' do
     boleto_novo = described_class.new @valid_attributes.merge(numero_documento: '1234567891234567')
     expect(boleto_novo).not_to be_valid
   end
 
-  it 'Número do documento deve ser preenchido com zeros à esquerda quando menor que 15 dígitos' do
+  it 'Número do documento deve ser preenchido com zeros à esquerda quando menor que 13 dígitos' do
     boleto_novo = described_class.new @valid_attributes.merge(numero_documento: '1')
-    expect(boleto_novo.numero_documento).to eq('000000000000001')
+    expect(boleto_novo.numero_documento).to eq('0000000000001')
     expect(boleto_novo).to be_valid
   end
 
@@ -117,6 +117,37 @@ RSpec.describe Brcobranca::Boleto::Caixa do #:nodoc:[all]
     expect(boleto_novo.agencia_conta_boleto).to eql('2030/654321-9')
   end
 
+  context 'Convênio de 7 dígitos' do
+    before do
+      @valid_attributes_7 = @valid_attributes.merge(convenio: '1100000')
+    end
+
+    it 'Criar nova instância válida com convênio de 7 dígitos' do
+      boleto_novo = described_class.new @valid_attributes_7
+      expect(boleto_novo).to be_valid
+    end
+
+    it 'convenio_dv retorna string vazia para 7 dígitos' do
+      boleto_novo = described_class.new @valid_attributes_7
+      expect(boleto_novo.convenio_dv).to eq('')
+    end
+
+    it 'agencia_conta_boleto sem DV para 7 dígitos' do
+      boleto_novo = described_class.new @valid_attributes_7
+      expect(boleto_novo.agencia_conta_boleto).to eq('1825/1100000')
+    end
+
+    it 'codigo_barras_segunda_parte com 25 posições para 7 dígitos' do
+      boleto_novo = described_class.new @valid_attributes_7
+      expect(boleto_novo.codigo_barras_segunda_parte.size).to eq(25)
+    end
+
+    it 'nosso_numero_boleto não é afetado pelo convênio de 7 dígitos' do
+      boleto_novo = described_class.new @valid_attributes_7
+      expect(boleto_novo.nosso_numero_boleto).to eq('24000000000000001-2')
+    end
+  end
+
   describe 'Busca logotipo do banco' do
     it_behaves_like 'busca_logotipo'
   end
@@ -125,7 +156,7 @@ RSpec.describe Brcobranca::Boleto::Caixa do #:nodoc:[all]
     @valid_attributes[:valor] = 135.00
     @valid_attributes[:data_documento] = Date.parse('2008-02-01')
     @valid_attributes[:data_vencimento] = Date.parse('2008-02-03')
-    @valid_attributes[:numero_documento] = '000000077700168'
+    @valid_attributes[:numero_documento] = '0000077700168'
     boleto_novo = described_class.new(@valid_attributes)
     %w(pdf jpg tif png).each do |format|
       file_body = boleto_novo.send("to_#{format}".to_sym)
@@ -143,7 +174,7 @@ RSpec.describe Brcobranca::Boleto::Caixa do #:nodoc:[all]
     @valid_attributes[:valor] = 135.00
     @valid_attributes[:data_documento] = Date.parse('2008-02-01')
     @valid_attributes[:data_vencimento] = Date.parse('2008-02-03')
-    @valid_attributes[:numero_documento] = '000000077700168'
+    @valid_attributes[:numero_documento] = '0000077700168'
     boleto_novo = described_class.new(@valid_attributes)
     %w(pdf jpg tif png).each do |format|
       file_body = boleto_novo.to(format)

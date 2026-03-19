@@ -16,8 +16,8 @@ module Brcobranca
       # Emissão do boleto (4-Beneficiário)
       validates_length_of :emissao, is: 1, message: 'deve possuir 1 dígitos.'
       validates_length_of :prefixo, is: 2, message: 'deve possuir 2 dígitos.'
-      validates_length_of :convenio, is: 6, message: 'deve possuir 6 dígitos.'
-      validates_length_of :numero_documento, is: 13, message: 'deve possuir 15 dígitos.'
+      validates_length_of :convenio, in: 6..7, message: 'deve possuir 6 ou 7 dígitos.'
+      validates_length_of :numero_documento, is: 13, message: 'deve possuir 13 dígitos.'
 
       # Nova instância da CaixaEconomica
       # @param (see Brcobranca::Boleto::Base#initialize)
@@ -47,9 +47,12 @@ module Brcobranca
       end
 
       # Número do convênio/contrato do cliente junto ao banco.
-      # @return [String] 6 caracteres numéricos.
+      # @return [String] 6 ou 7 caracteres numéricos.
       def convenio=(valor)
-        @convenio = valor.to_s.rjust(6, '0') if valor
+        if valor
+          valor_str = valor.to_s
+          @convenio = valor_str.size > 6 ? valor_str.rjust(7, '0') : valor_str.rjust(6, '0')
+        end
       end
 
       # Número seqüencial utilizado para identificar o boleto.
@@ -87,12 +90,18 @@ module Brcobranca
       # @example
       #  boleto.agencia_conta_boleto #=> "1565/100000-4"
       def agencia_conta_boleto
-        "#{agencia}/#{convenio}-#{convenio_dv}"
+        if convenio_7_digitos?
+          "#{agencia}/#{convenio}"
+        else
+          "#{agencia}/#{convenio}-#{convenio_dv}"
+        end
       end
 
       # Dígito verificador do convênio ou código do cedente
       # @return [String]
       def convenio_dv
+        return '' if convenio_7_digitos?
+
         convenio.modulo11(
           multiplicador: (2..9).to_a,
           mapeamento: { 10 => 0, 11 => 0 }
@@ -110,9 +119,9 @@ module Brcobranca
       #  25: dígito verificador do campo livre
       # @return [String]
       def codigo_barras_segunda_parte
-        campo_livre = "#{convenio}" \
-        "#{convenio_dv}" \
-        "#{nosso_numero[2..4]}" \
+        campo_livre = convenio_7_digitos? ? convenio.to_s : "#{convenio}#{convenio_dv}"
+
+        campo_livre += "#{nosso_numero[2..4]}" \
         "#{nosso_numero[0..0]}" \
         "#{nosso_numero[5..7]}" \
         "#{nosso_numero[1..1]}" \
@@ -123,6 +132,12 @@ module Brcobranca
             multiplicador: (2..9).to_a,
             mapeamento: { 10 => 0, 11 => 0 }
           ) { |total| 11 - (total % 11) }.to_s
+      end
+
+      private
+
+      def convenio_7_digitos?
+        convenio.to_s.size == 7
       end
     end
   end
